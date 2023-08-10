@@ -1,9 +1,11 @@
 package pl.kalksztejn.mateusz.reactivehttptester.service.Implementation;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import pl.kalksztejn.mateusz.reactivehttptester.service.Interface.MathService;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
 import java.io.BufferedWriter;
@@ -24,12 +26,18 @@ import java.util.stream.IntStream;
 public class MathServiceImp implements MathService {
 
     private final Semaphore semaphore = new Semaphore(1);
-    private final String filePath = "example.txt";
+    private final Scheduler customScheduler;
+
+    @Autowired
+    public MathServiceImp(Scheduler customScheduler) {
+        this.customScheduler = customScheduler;
+    }
+
     @Override
     public Mono<List<Double>> calculateSqrt() {
         Flux<Double> sqrtFlux = Flux.range(1, 100)
                 .onBackpressureBuffer(100)
-                .map(Math::sqrt);
+                .map(Math::sqrt).subscribeOn(customScheduler);
 
         return sqrtFlux.collectList();
     }
@@ -39,7 +47,7 @@ public class MathServiceImp implements MathService {
         return Flux.range(1, 100)
                 .map(BigInteger::valueOf)
                 .reduce(BigInteger.ONE, BigInteger::multiply)
-                .then(Mono.just("ok"));
+                .then(Mono.just("ok")).subscribeOn(customScheduler);
     }
 
     @Override
@@ -64,7 +72,7 @@ public class MathServiceImp implements MathService {
                 .doFinally(signalType -> {
                     File file = new File(filename);
                     file.delete();
-                });
+                }).subscribeOn(customScheduler);
     }
 
     private void writeToFile(String line, String filename) {

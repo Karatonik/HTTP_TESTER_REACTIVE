@@ -10,6 +10,7 @@ import pl.kalksztejn.mateusz.reactivehttptester.repository.ElementRepository;
 import pl.kalksztejn.mateusz.reactivehttptester.repository.SampleObjectRepository;
 import pl.kalksztejn.mateusz.reactivehttptester.service.Interface.ModelWrapper;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Scheduler;
 
 
 import java.util.Optional;
@@ -18,9 +19,11 @@ import java.util.Optional;
 public class ModelWrapperImp implements ModelWrapper {
 
     private final SampleObjectRepository sampleObjectRepository;
+    private final Scheduler customScheduler;
 
     @Autowired
-    public ModelWrapperImp(SampleObjectRepository sampleObjectRepository, ElementRepository elementRepository) {
+    public ModelWrapperImp(Scheduler customScheduler, SampleObjectRepository sampleObjectRepository, ElementRepository elementRepository) {
+        this.customScheduler = customScheduler;
         this.sampleObjectRepository = sampleObjectRepository;
     }
 
@@ -39,7 +42,7 @@ public class ModelWrapperImp implements ModelWrapper {
             }
             element.setDataAndTimeOfCreation(dto.getDataAndTimeOfCreation());
             return Mono.just(element);
-        });
+        }).subscribeOn(customScheduler);
     }
 
     @Override
@@ -54,6 +57,6 @@ public class ModelWrapperImp implements ModelWrapper {
             sampleObject.setDescription(dto.getDescription());
             sampleObject.setDataAndTimeOfCreation(dto.getDataAndTimeOfCreation());
             return Mono.just(sampleObject);
-        });
+        }).subscribeOn(customScheduler);
     }
 }

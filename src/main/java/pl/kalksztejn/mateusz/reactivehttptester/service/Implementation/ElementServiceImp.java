@@ -10,25 +10,27 @@ import pl.kalksztejn.mateusz.reactivehttptester.repository.ElementRepository;
 import pl.kalksztejn.mateusz.reactivehttptester.service.Interface.ElementService;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Scheduler;
 
 @Service
 public class ElementServiceImp implements ElementService {
-
+    private final Scheduler customScheduler;
     private final ElementRepository elementRepository;
 
     @Autowired
-    public ElementServiceImp(ElementRepository elementRepository) {
+    public ElementServiceImp(Scheduler customScheduler,ElementRepository elementRepository) {
+        this.customScheduler = customScheduler;
         this.elementRepository = elementRepository;
     }
 
     @Override
     public Flux<Element> getElements(Pageable pageable) {
-        return elementRepository.findBy(pageable);
+        return elementRepository.findBy(pageable).subscribeOn(customScheduler);
     }
 
     @Override
     public Mono<Element> getElement(long id) {
-        return elementRepository.findById(id);
+        return elementRepository.findById(id).subscribeOn(customScheduler);
     }
 
     @Override
@@ -36,14 +38,14 @@ public class ElementServiceImp implements ElementService {
     public Mono<Boolean> deleteElement(long id) {
         return elementRepository.findById(id)
                 .flatMap(element -> elementRepository.delete(element).thenReturn(true))
-                .defaultIfEmpty(false);
+                .defaultIfEmpty(false).subscribeOn(customScheduler);
     }
 
     @Override
     public Mono<SampleObject> getSampleObjectByElement(long elementId) {
         return elementRepository.findById(elementId)
                 .cast(Element.class)
-                .flatMap(Element::getSampleObject);
+                .flatMap(Element::getSampleObject).subscribeOn(customScheduler);
     }
 
     @Override
@@ -56,7 +58,7 @@ public class ElementServiceImp implements ElementService {
                     return elementRepository.save(existingElement);
                 })
                 .switchIfEmpty(Mono.error(new RuntimeException("Element not found")))
-                .onErrorResume(throwable -> Mono.empty()));
+                .onErrorResume(throwable -> Mono.empty())).subscribeOn(customScheduler);
     }
 
     @Override
@@ -64,6 +66,6 @@ public class ElementServiceImp implements ElementService {
         return element.flatMap(e -> {
             e.setElementId(null);
             return elementRepository.save(e);
-        });
+        }).subscribeOn(customScheduler);
     }
 }

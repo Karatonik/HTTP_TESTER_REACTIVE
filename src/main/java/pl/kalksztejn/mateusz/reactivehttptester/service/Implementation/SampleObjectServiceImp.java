@@ -10,6 +10,7 @@ import pl.kalksztejn.mateusz.reactivehttptester.repository.SampleObjectRepositor
 import pl.kalksztejn.mateusz.reactivehttptester.service.Interface.SampleObjectService;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Scheduler;
 
 import java.util.List;
 
@@ -18,20 +19,22 @@ public class SampleObjectServiceImp implements SampleObjectService {
 
     private final SampleObjectRepository sampleObjectRepository;
     private final ElementRepository elementRepository;
+    private final Scheduler customScheduler;
 
-    public SampleObjectServiceImp(SampleObjectRepository sampleObjectRepository, ElementRepository elementRepository) {
+    public SampleObjectServiceImp(Scheduler customScheduler, SampleObjectRepository sampleObjectRepository, ElementRepository elementRepository) {
+        this.customScheduler = customScheduler;
         this.sampleObjectRepository = sampleObjectRepository;
         this.elementRepository = elementRepository;
     }
 
     @Override
     public Flux<SampleObject> getSampleObjects(Pageable pageable) {
-        return sampleObjectRepository.findBy(pageable);
+        return sampleObjectRepository.findBy(pageable).subscribeOn(customScheduler);
     }
 
     @Override
     public Mono<SampleObject> getSampleObject(long id) {
-        return sampleObjectRepository.findById(id);
+        return sampleObjectRepository.findById(id).subscribeOn(customScheduler);
     }
 
     @Override
@@ -62,7 +65,7 @@ public class SampleObjectServiceImp implements SampleObjectService {
                                 }
                             });
                 })
-                .defaultIfEmpty(false);
+                .defaultIfEmpty(false).subscribeOn(customScheduler);
     }
 
 
@@ -70,14 +73,14 @@ public class SampleObjectServiceImp implements SampleObjectService {
     public Flux<Element> getSampleObjectElements(long id) {
         return sampleObjectRepository.findById(id)
                 .flatMapMany(sampleObject -> sampleObject!= null &&sampleObject.getElements()!= null  ? Flux.from(sampleObject.getElements()): Flux.empty())
-                .switchIfEmpty(Flux.empty());
+                .switchIfEmpty(Flux.empty()).subscribeOn(customScheduler);
     }
 
     @Override
     public Flux<Element> getSampleObjectElements(long id, Pageable pageable) {
         return sampleObjectRepository.findById(id)
                 .flatMapMany(sampleObject -> elementRepository.findElementsBySampleObjectId(sampleObject.getObjectId(), pageable))
-                .switchIfEmpty(Flux.empty());
+                .switchIfEmpty(Flux.empty()).subscribeOn(customScheduler);
     }
 
     @Override
@@ -97,7 +100,7 @@ public class SampleObjectServiceImp implements SampleObjectService {
                         }
                         return Mono.just(savedSampleObject);
                     });
-        });
+        }).subscribeOn(customScheduler);
     }
 
     @Override
@@ -109,6 +112,6 @@ public class SampleObjectServiceImp implements SampleObjectService {
                     existingSampleObject.setDescription(updatedSampleObject.getDescription());
                     existingSampleObject.setDataAndTimeOfCreation(updatedSampleObject.getDataAndTimeOfCreation());
                     return sampleObjectRepository.save(existingSampleObject);
-                }));
+                })).subscribeOn(customScheduler);
     }
 }
